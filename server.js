@@ -1339,11 +1339,16 @@ async function getSession(userId, { trace = false } = {}) {
         permissions: ['geolocation'],
       };
       // When geoip is active (proxy configured), camoufox auto-configures
-      // locale/timezone/geolocation from the proxy IP. Without proxy, use defaults.
+      // locale/timezone/geolocation from the proxy IP. Without proxy, use
+      // egress-matched defaults (AU: this host's real egress is Australia;
+      // a US fingerprint on an AU IP is a first-order inconsistency flag —
+      // 2026-10-05 audit). Overridable: CAMOFOX_DEFAULT_LOCALE / _TZ / _LAT / _LON.
       if (!CONFIG.proxy.host) {
-        contextOptions.locale = 'en-US';
-        contextOptions.timezoneId = 'America/Los_Angeles';
-        contextOptions.geolocation = { latitude: 37.7749, longitude: -122.4194 };
+        contextOptions.locale = process.env.CAMOFOX_DEFAULT_LOCALE || 'en-AU';
+        contextOptions.timezoneId = process.env.CAMOFOX_DEFAULT_TZ || 'Australia/Sydney';
+        const lat = parseFloat(process.env.CAMOFOX_DEFAULT_LAT || '-33.8688');
+        const lon = parseFloat(process.env.CAMOFOX_DEFAULT_LON || '151.2093');
+        contextOptions.geolocation = { latitude: lat, longitude: lon };
       }
       let sessionProxy = null;
       if (proxyPool?.canRotateSessions) {
