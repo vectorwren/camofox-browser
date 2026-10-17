@@ -1397,6 +1397,20 @@ async function getSession(userId, { trace = false } = {}) {
           directIdentity: CONFIG.directIdentity,
         }),
       };
+      // Egress-matched defaults for proxyless sessions (fork: AU — this host's
+      // real egress is Australia; a US fingerprint on an AU IP is a first-order
+      // inconsistency flag, 2026-10-05 audit). Upstream's directIdentity covers
+      // locale+timezone when configured; geolocation has no upstream env knob,
+      // so it is applied here, after the identity spread, direct sessions only.
+      // Overridable: CAMOFOX_DEFAULT_LOCALE / _TZ / _LAT / _LON.
+      if (!CONFIG.proxy.host) {
+        contextOptions.locale = process.env.CAMOFOX_DEFAULT_LOCALE || 'en-AU';
+        contextOptions.timezoneId = process.env.CAMOFOX_DEFAULT_TZ || 'Australia/Sydney';
+        const lat = parseFloat(process.env.CAMOFOX_DEFAULT_LAT || '-33.8688');
+        const lon = parseFloat(process.env.CAMOFOX_DEFAULT_LON || '151.2093');
+        contextOptions.geolocation = { latitude: lat, longitude: lon };
+        contextOptions.permissions = contextOptions.permissions || ['geolocation'];
+      }
       let sessionProxy = null;
       if (proxyPool?.canRotateSessions) {
         sessionProxy = proxyPool.getNext(`ctx-${key}-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`);
